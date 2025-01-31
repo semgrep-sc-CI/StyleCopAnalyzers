@@ -11,60 +11,73 @@ on:
 
 jobs:
   restore:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+    
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v1.2.0
+    
+    - name: Restore NuGet packages and generate lock file
+      run: nuget restore StyleCopAnalyzers.sln -UseLockFile -ForceEvaluate
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.100' # or the version you are using
+    - name: Upload Lock File    
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfile
+        path: '**/packages.lock.json'
+       
+  # restore:
+  #   runs-on: ubuntu-latest
+    
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
 
-      - name: Restore dependencies
-        # run: dotnet restore -p:RestorePackagesWithLockFile=True
-        run : |     
-          echo "Step 1: Finding '*.csproj' files..."
-          find_out=$(find . -type f -name '*.csproj')
-      
-          echo "Step 2: Filtering out the root '*.csproj'..."
-          filtered_out=$(echo "$find_out" | grep -v '^./*.csproj$' || true)
-      
-          if [ -z "$filtered_out" ]; then
-            echo "No submodule *.csproj files found after filtering. Skipping submodule processing."
-          else
-            echo "Step 3: Removing './' prefix..."
-            sed_out=$(echo "$filtered_out" | sed 's|^\./||')
-      
-            echo "Step 4: Getting unique directories..."
-            csproj=$(echo "$sed_out" | xargs -I {} dirname {} | sort | uniq)
-          fi
-      
-          current_dir=$(pwd)
-      
-          # Print the current directory
-          echo "The current directory is: $current_dir"
-          if [ -z "$csproj" ]; then
-            echo "No *.csproj files found. Skipping submodule processing."
-          else
-            for dir in $csproj; do
-      
-              cd $dir && dotnet restore -p:RestorePackagesWithLockFile=True || true  && cd $current_dir
-      
-              if [ -f "$dir/packages.lock.json" ]; then
-                echo "Successfully generated $dir/packages.lock.json"
-              else
-                echo "Failed to generate $dir/packages.lock.json"
-              fi
-            done
-          fi
+  #     - name: Setup .NET Core
+  #       uses: actions/setup-dotnet@v2
+  #       with:
+  #         dotnet-version: '8.0.100' # or the version you are using
 
-      - name: Upload Lock File    
-        uses: actions/upload-artifact@v4
-        with:
-          name: lockfile
-          path: '**/packages.lock.json'
+  #     - name: Restore dependencies
+  #       # run: dotnet restore -p:RestorePackagesWithLockFile=True
+  #       run : |     
+  #         echo "Step 1: Finding '*.csproj' files..."
+  #         find_out=$(find . -type f -name '*.csproj')
+      
+  #         echo "Step 2: Filtering out the root '*.csproj'..."
+  #         filtered_out=$(echo "$find_out" | grep -v '^./*.csproj$' || true)
+      
+  #         if [ -z "$filtered_out" ]; then
+  #           echo "No submodule *.csproj files found after filtering. Skipping submodule processing."
+  #         else
+  #           echo "Step 3: Removing './' prefix..."
+  #           sed_out=$(echo "$filtered_out" | sed 's|^\./||')
+      
+  #           echo "Step 4: Getting unique directories..."
+  #           csproj=$(echo "$sed_out" | xargs -I {} dirname {} | sort | uniq)
+  #         fi
+      
+  #         current_dir=$(pwd)
+      
+  #         # Print the current directory
+  #         echo "The current directory is: $current_dir"
+  #         if [ -z "$csproj" ]; then
+  #           echo "No *.csproj files found. Skipping submodule processing."
+  #         else
+  #           for dir in $csproj; do
+      
+  #             cd $dir && dotnet restore -p:RestorePackagesWithLockFile=True || true  && cd $current_dir
+      
+  #             if [ -f "$dir/packages.lock.json" ]; then
+  #               echo "Successfully generated $dir/packages.lock.json"
+  #             else
+  #               echo "Failed to generate $dir/packages.lock.json"
+  #             fi
+  #           done
+  #         fi
+
   semgrep:
       needs: restore
       name: Scan
