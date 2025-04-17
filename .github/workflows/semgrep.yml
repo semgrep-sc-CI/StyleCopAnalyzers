@@ -2,47 +2,22 @@ name: Semgrep Scans with .NET nuget
 
 on:
   workflow_dispatch: 
-  push:
-    branches:
-      - dev # or the default branch you are using
-  pull_request:
-    branches:
-      - dev # or the default branch you are using
 
 jobs:
-  restore:
-    runs-on: windows-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup NuGet
-      uses: NuGet/setup-nuget@v1.2.0
-    
-    - name: Restore NuGet packages and generate lock file
-      run: nuget restore StyleCopAnalyzers.sln -UseLockFile -ForceEvaluate
-
-    - name: Upload Lock File    
-      uses: actions/upload-artifact@v4
-      with:
-        name: lockfile
-        path: '**/packages.lock.json'
-       
   semgrep:
-      needs: restore
-      name: Scan
-      runs-on: ubuntu-20.04
-      env:
-        SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-      container:
-        image: semgrep/semgrep
-      steps:
-      - uses: actions/checkout@v3
-      - name: Download artifact from previous job
-        uses: actions/download-artifact@v4
-        with:
-          name: lockfile 
+    name: semgrep/ci
+    runs-on: ubuntu-20.04
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    container:
+      image: semgrep/semgrep
+
+    # Skip any PR created by dependabot to avoid permission issues:
+    if: (github.actor != 'dependabot[bot]')
+
+    steps:
+      - uses: actions/checkout@v4
       - run: |
-          tree 
-          semgrep ci --supply-chain
+          apk add dotnet8-sdk
+          semgrep ci --allow-local-builds
           
